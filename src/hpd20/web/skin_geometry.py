@@ -165,6 +165,9 @@ def build_pad_geometries() -> list[dict[str, Any]]:
         })
 
     # Slots 13..16 - auxiliary trigger rects at the top of the SVG.
+    # Aux rects are short (40px tall), so the play button lives on the right
+    # side *inside* the rect — putting it below would overlap the brand strip.
+    # Labels shift left to make room.
     order = [("D-Beam", 13), ("Head", 14), ("Rim", 15), ("HH", 16)]
     for aux_name, slot in order:
         rect = next(r for r in AUX_RECTS if r[0] == aux_name)
@@ -177,10 +180,10 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "y": y,
             "w": w,
             "h": h,
-            "label_x": x + w / 2,
+            "label_x": x + (w - 24) / 2,   # centre of the area left of the button
             "label_y": y + h / 2 + 4,
-            "play_x": x + w / 2,
-            "play_y": y + h + 22,  # just below the rect, centred under name
+            "play_x": x + w - 20,          # right side of rect, 20px from edge
+            "play_y": y + h / 2,
             "family": "aux",
         })
 
