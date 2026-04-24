@@ -2,13 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import json
 import logging
 import sys
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -24,6 +33,14 @@ from ..instrumentname import (
 from . import favorites
 from .skin_geometry import PAD_GEOMETRIES, VIEW_H, VIEW_W
 
+try:
+    from ..midi import MidiEngine, MidiUnavailable
+    from ..midi import persistence as midi_persistence
+except ImportError:  # pragma: no cover
+    MidiEngine = None  # type: ignore
+    MidiUnavailable = Exception  # type: ignore
+    midi_persistence = None  # type: ignore
+
 log = logging.getLogger(__name__)
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -37,6 +54,7 @@ class AppState:
         self.backup: HPD | None = None
         self.backup_path: Path | None = None
         self.dirty: bool = False
+        self.midi: Any | None = None  # MidiEngine, set lazily
 
     def require(self) -> HPD:
         if self.backup is None:
@@ -50,6 +68,17 @@ class AppState:
 
     def mark_dirty(self) -> None:
         self.dirty = True
+
+    def require_midi(self) -> Any:
+        if MidiEngine is None:
+            raise HTTPException(
+                501, "MIDI support not installed. Run: pip install 'hpd20[midi]'"
+            )
+        if self.midi is None:
+            self.midi = MidiEngine()
+            if midi_persistence is not None:
+                self.midi.remap = midi_persistence.load_remap()
+        return self.midi
 
 
 def create_app(initial_backup: Path | None = None) -> FastAPI:
@@ -181,6 +210,141 @@ def create_app(initial_backup: Path | None = None) -> FastAPI:
     def api_toggle_favorite(instrument_id: int):
         ids = favorites.toggle(instrument_id)
         return JSONResponse({"favorites": ids})
+
+    # ---------- MIDI ----------
+
+    def _bind_midi_loop_if_needed() -> None:
+        """Attach the running event loop to the engine. Call from async handlers."""
+        if state.midi is not None:
+            with contextlib.suppress(RuntimeError):
+                state.midi.bind_loop(asyncio.get_running_loop())
+
+    @app.get("/api/midi/devices")
+    async def midi_devices():
+        engine = state.require_midi()
+        _bind_midi_loop_if_needed()
+        return JSONResponse(engine.list_devices())
+
+    @app.get("/api/midi/status")
+    async def midi_status():
+        engine = state.require_midi()
+        return JSONResponse(engine.status())
+
+    @app.post("/api/midi/connect")
+    async def midi_connect(
+        input_name: str | None = Form(None),
+        output_name: str | None = Form(None),
+    ):
+        engine = state.require_midi()
+        engine.bind_loop(asyncio.get_running_loop())
+        engine.connect(input_name or None, output_name or None)
+        return JSONResponse(engine.status())
+
+    @app.post("/api/midi/disconnect")
+    async def midi_disconnect():
+        engine = state.require_midi()
+        engine.close()
+        return JSONResponse({"ok": True})
+
+    @app.get("/api/midi/remap")
+    async def midi_remap_get():
+        engine = state.require_midi()
+        return JSONResponse({"remap": {str(k): v for k, v in engine.remap.items()}})
+
+    @app.post("/api/midi/remap")
+    async def midi_remap_set(src: int = Form(...), dst: int = Form(...)):
+        engine = state.require_midi()
+        engine.set_remap(src, dst)
+        if midi_persistence is not None:
+            midi_persistence.save_remap(engine.remap)
+        return JSONResponse({"remap": {str(k): v for k, v in engine.remap.items()}})
+
+    @app.delete("/api/midi/remap/{src}")
+    async def midi_remap_clear(src: int):
+        engine = state.require_midi()
+        engine.clear_remap(src)
+        if midi_persistence is not None:
+            midi_persistence.save_remap(engine.remap)
+        return JSONResponse({"remap": {str(k): v for k, v in engine.remap.items()}})
+
+    @app.post("/api/midi/kit-change/{kit_index}")
+    async def midi_kit_change(kit_index: int):
+        _bounds_check_kit(kit_index)
+        engine = state.require_midi()
+        try:
+            engine.switch_kit(kit_index)
+        except RuntimeError as e:
+            raise HTTPException(400, str(e)) from e
+        return JSONResponse({"ok": True, "kit": kit_index})
+
+    @app.post("/api/midi/record/start")
+    async def midi_record_start():
+        engine = state.require_midi()
+        engine.start_recording()
+        return JSONResponse({"ok": True, "recording": True})
+
+    @app.post("/api/midi/record/stop")
+    async def midi_record_stop(name: str = Form("")):
+        engine = state.require_midi()
+        events = engine.stop_recording()
+        saved: str | None = None
+        if events and midi_persistence is not None:
+            path = midi_persistence.save_pattern(events, name or None)
+            saved = str(path)
+        return JSONResponse({
+            "ok": True,
+            "recording": False,
+            "event_count": len(events),
+            "saved_to": saved,
+        })
+
+    @app.get("/api/midi/patterns")
+    async def midi_patterns_list():
+        if midi_persistence is None:
+            return JSONResponse({"patterns": []})
+        return JSONResponse({"patterns": midi_persistence.list_patterns()})
+
+    @app.get("/api/midi/pad-lookup/{kit_index}")
+    async def midi_pad_lookup(kit_index: int):
+        """Return {note -> pad_slot} for the given kit.
+
+        Lets the browser highlight the right pad when a MIDI note comes in:
+        each pad stores a MIDI note number at MIDI_INDEX (+33).
+        """
+        _bounds_check_kit(kit_index)
+        hpd = state.require()
+        mapping: dict[int, int] = {}
+        for slot in range(PADS_PER_KIT):
+            pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + slot)
+            note = pad.get_midi()
+            if note and note < 128:  # skip "off" (0 or 255) values
+                mapping[note] = slot
+        return JSONResponse({"kit": kit_index, "note_to_slot": mapping})
+
+    @app.get("/api/midi/events")
+    async def midi_events(request: Request):
+        """SSE stream of MIDI events (note_on, note_off, program_change, status)."""
+        engine = state.require_midi()
+        engine.bind_loop(asyncio.get_event_loop())
+        queue = engine.subscribe()
+
+        async def event_stream():
+            try:
+                # initial status so the client isn't blank
+                yield f"data: {json.dumps({'type': 'status', **engine.status()})}\n\n"
+                while True:
+                    if await request.is_disconnected():
+                        break
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15.0)
+                        yield f"data: {json.dumps(event)}\n\n"
+                    except asyncio.TimeoutError:
+                        # heartbeat so intermediaries don't close the connection
+                        yield ": keepalive\n\n"
+            finally:
+                engine.unsubscribe(queue)
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     @app.post("/kit/{kit_index}/name")
     def edit_kit_name(kit_index: int, main: str = Form(""), sub: str = Form("")):

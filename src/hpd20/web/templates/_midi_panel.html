@@ -1,0 +1,64 @@
+{#
+  MIDI control panel — collapsed button in the header, slides open to
+  reveal device pickers, remap table, recorder, kit-change control.
+#}
+<div class="midi-panel" id="midi-panel" hidden>
+    <header class="midi-panel-header">
+        <h3>MIDI</h3>
+        <button type="button" class="midi-close" id="midi-close" title="Close panel">×</button>
+    </header>
+
+    <section class="midi-section">
+        <h4>Devices</h4>
+        <div class="midi-row">
+            <label>Input
+                <select id="midi-input"></select>
+            </label>
+            <label>Output (HPD-20)
+                <select id="midi-output"></select>
+            </label>
+        </div>
+        <div class="midi-actions">
+            <button type="button" id="midi-connect-btn" class="primary">Connect</button>
+            <button type="button" id="midi-disconnect-btn">Disconnect</button>
+            <button type="button" id="midi-refresh-btn" title="Re-scan devices">↻</button>
+        </div>
+        <div class="midi-status" id="midi-status">idle</div>
+    </section>
+
+    <section class="midi-section">
+        <h4>Kit change (Program Change)</h4>
+        <p class="midi-hint">Send a Program Change so the device switches to the currently-viewed kit. Uses Bank Select for kits ≥ 128.</p>
+        <button type="button" id="midi-send-kit-btn">Send kit change →</button>
+    </section>
+
+    <section class="midi-section">
+        <h4>Note remap</h4>
+        <p class="midi-hint">Incoming note <em>from</em> is forwarded as note <em>to</em>. Useful when your controller's notes don't match the HPD-20 pads.</p>
+        <form id="midi-remap-form" class="midi-row">
+            <label>From
+                <input type="number" id="midi-remap-src" min="0" max="127" placeholder="60" />
+            </label>
+            <label>→ To
+                <input type="number" id="midi-remap-dst" min="0" max="127" placeholder="36" />
+            </label>
+            <button type="submit">Add</button>
+        </form>
+        <ul id="midi-remap-list" class="midi-remap-list"></ul>
+    </section>
+
+    <section class="midi-section">
+        <h4>Pattern recorder</h4>
+        <p class="midi-hint">Capture every incoming note with timestamps. Saved to <code>~/.hpd20-patterns/</code> as JSON.</p>
+        <div class="midi-actions">
+            <input type="text" id="midi-record-name" placeholder="pattern name (optional)" />
+            <button type="button" id="midi-record-btn">● Record</button>
+        </div>
+        <div class="midi-record-status" id="midi-record-status"></div>
+    </section>
+
+    <section class="midi-section">
+        <h4>Recent activity</h4>
+        <ul id="midi-activity" class="midi-activity"></ul>
+    </section>
+</div>

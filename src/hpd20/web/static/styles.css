@@ -231,6 +231,71 @@ body.swap-mode .pad { cursor: crosshair; }
 .empty { background: var(--panel); padding: 32px; border-radius: var(--radius); max-width: 600px; margin: 40px auto; }
 .empty pre { background: var(--bg); padding: 12px; border-radius: 6px; overflow-x: auto; }
 
+/* ===== MIDI panel (slide-over on the right) ===== */
+.midi-btn { background: #2a3544; border-color: #3a4a5e; color: #9ec4e5; }
+.midi-btn:hover { background: #3a4a5e; color: #fff; }
+.midi-panel {
+    position: fixed; top: 44px; right: 0; bottom: 0;
+    width: 380px; max-width: 100vw;
+    background: var(--panel); border-left: 1px solid var(--border);
+    overflow-y: auto; padding: 12px 14px;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+}
+.midi-panel[hidden] { display: none; }
+.midi-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.midi-panel-header h3 { margin: 0; font-size: 16px; color: var(--accent); }
+.midi-close {
+    background: transparent; border: none; color: var(--muted);
+    font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px;
+}
+.midi-close:hover { color: var(--text); }
+.midi-section { margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.midi-section:last-child { border-bottom: none; }
+.midi-section h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.midi-section p.midi-hint { margin: 0 0 8px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.midi-section p.midi-hint code { background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+.midi-row { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
+.midi-row label { flex: 1; min-width: 100px; display: block; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+.midi-row input, .midi-row select {
+    width: 100%; padding: 4px 6px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 5px; font-size: 11px;
+    font-family: ui-monospace, Menlo, monospace;
+}
+.midi-row button { align-self: flex-end; }
+.midi-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.midi-actions button.primary { flex: 1; }
+.midi-actions input[type="text"] { flex: 1; padding: 4px 6px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; font-size: 11px; }
+.midi-status {
+    margin-top: 6px; padding: 4px 8px; background: var(--bg); border-radius: 4px;
+    font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--muted);
+}
+.midi-remap-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.midi-remap-list li {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 6px; margin-bottom: 2px; border-radius: 4px; background: var(--bg);
+    font-size: 11px; font-family: ui-monospace, Menlo, monospace;
+}
+.midi-remap-list li .remap-pair { color: var(--accent); }
+.midi-remap-list li button { padding: 2px 6px; font-size: 10px; }
+.midi-empty { color: var(--muted); font-style: italic; font-size: 10px; padding: 4px 6px; }
+.midi-record-status { margin-top: 6px; font-size: 11px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+#midi-record-btn.recording { background: var(--danger); color: #fff; border-color: var(--danger); }
+.midi-activity {
+    list-style: none; margin: 4px 0 0; padding: 0;
+    max-height: 160px; overflow-y: auto;
+    font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--muted);
+}
+.midi-activity li { padding: 1px 4px; border-bottom: 1px solid var(--border); }
+.midi-activity li:first-child { color: var(--on); }
+
+/* Pad pulse — fires when a live MIDI note lights up a pad */
+@keyframes pad-pulse {
+    0%   { filter: brightness(1.8) saturate(1.5) drop-shadow(0 0 12px rgba(255, 220, 130, 0.9)); }
+    100% { filter: none; }
+}
+.pad.pulse { animation: pad-pulse 180ms ease-out; }
+
 /* ===== Responsive fallback ===== */
 @media (max-width: 1600px) {
     .kit-layout { grid-template-columns: 160px minmax(400px, 1fr) minmax(400px, 480px) 280px; gap: 8px; }
