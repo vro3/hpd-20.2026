@@ -533,14 +533,15 @@ def _pad_summary(pad, slot: int) -> dict[str, Any]:
     raw_pitch = pad.get_pitch(0)
     absolute = raw_pitch + get_instrument_pitch(pad.get_patch(0))
     patch_name = get_instrument_name(pad.get_patch(0))
-    # Character budget per family — Big-pad labels get ~14 chars, S-wedges ~8,
-    # aux chips ~12. These track the CSS font sizes so names wrap gracefully.
+    # Character budget per family — relaxed (was tight). Over-long names may
+    # overflow the visible pad area; that's fine visually and the full name
+    # still appears in the pad's <title> tooltip.
     if slot < 5:
-        short = _truncate(patch_name, 14)
+        short = _truncate(patch_name, 20)
     elif slot < 13:
-        short = _truncate(patch_name, 8)
+        short = _truncate(patch_name, 14)
     else:
-        short = _truncate(patch_name, 12)
+        short = _truncate(patch_name, 18)
     return {
         "slot": slot,
         "name": PAD_NAMES[slot],

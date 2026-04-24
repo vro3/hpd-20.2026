@@ -95,6 +95,22 @@ AUX_RECTS = [
 ]
 
 
+def _button_shape(cx: float, cy: float, r: float) -> str:
+    """Return the triangle-play icon points, scaled for a given button radius."""
+    return (
+        f"{cx - r * 0.33:.1f},{cy - r * 0.44:.1f} "
+        f"{cx - r * 0.33:.1f},{cy + r * 0.44:.1f} "
+        f"{cx + r * 0.44:.1f},{cy:.1f}"
+    )
+
+
+# Pads that need a smaller play button because their wedge sits right at
+# 12 o'clock where the bezel is tightest.
+_SMALL_BUTTON_SLOTS = {8, 9}  # S4, S5
+DEFAULT_BUTTON_RADIUS = 18
+SMALL_BUTTON_RADIUS = 13
+
+
 def build_pad_geometries() -> list[dict[str, Any]]:
     """Return one geometry dict per pad slot (0..16), with drawing data."""
     geoms: list[dict[str, Any]] = []
@@ -167,6 +183,14 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "play_y": y + h + 22,  # just below the rect, centred under name
             "family": "aux",
         })
+
+    # Per-pad play-button radius + triangle points (computed here so the
+    # template just renders what it's told).
+    for g in geoms:
+        r = SMALL_BUTTON_RADIUS if g["slot"] in _SMALL_BUTTON_SLOTS else DEFAULT_BUTTON_RADIUS
+        g["play_r"] = r
+        g["play_triangle"] = _button_shape(g["play_x"], g["play_y"], r)
+
     return geoms
 
 

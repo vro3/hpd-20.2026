@@ -110,13 +110,9 @@
            role="button"
            tabindex="0"
            aria-label="play {{ p.name }}">
-            <circle cx="{{ '%.1f'|format(p.play_x) }}" cy="{{ '%.1f'|format(p.play_y) }}" r="18"
+            <circle cx="{{ '%.1f'|format(p.play_x) }}" cy="{{ '%.1f'|format(p.play_y) }}" r="{{ p.play_r }}"
                     class="play-btn-bg"/>
-            <polygon points="{{ '%.1f,%.1f %.1f,%.1f %.1f,%.1f'|format(
-                        p.play_x - 6, p.play_y - 8,
-                        p.play_x - 6, p.play_y + 8,
-                        p.play_x + 8, p.play_y) }}"
-                     class="play-btn-icon"/>
+            <polygon points="{{ p.play_triangle }}" class="play-btn-icon"/>
             <title>Play {{ p.name }} ({{ p.patch_name }})</title>
         </g>
     {% endfor %}
