@@ -236,4 +236,34 @@
             noteToSlot = d.note_to_slot || {};
         });
     }
+
+    // ---------- Play buttons (SVG skin + slot-chooser chips) ----------
+    //
+    // Capture-phase listener intercepts clicks on any element with
+    // [data-pad-slot] inside a .play-btn or .chip-play, POSTs to
+    // /api/midi/play/{kit}/{slot}, and swallows the event so the <a>
+    // navigation doesn't fire and HTMX doesn't swap the editor.
+    document.addEventListener("click", (evt) => {
+        const skinBtn = evt.target.closest(".play-btn");
+        const chipBtn = evt.target.closest(".chip-play");
+        const btn = skinBtn || chipBtn;
+        if (!btn) return;
+        evt.preventDefault();
+        evt.stopPropagation();
+        const slot = btn.dataset.padSlot;
+        const kit = btn.dataset.kitIndex || kitIndex;
+        btn.classList.add("firing");
+        fetch(`/api/midi/play/${kit}/${slot}`, { method: "POST" })
+            .then(r => {
+                if (!r.ok) return r.json().then(d => { throw new Error(d.detail || r.statusText); });
+                return r.json();
+            })
+            .catch(err => {
+                // No MIDI output connected, or bad note. Surface briefly in status bar.
+                if (status) setStatus("play failed: " + err.message);
+            })
+            .finally(() => {
+                setTimeout(() => btn.classList.remove("firing"), 180);
+            });
+    }, true);
 })();

@@ -162,6 +162,40 @@ class MidiEngine:
             self.send_bank_select(0, channel)
         self.send_program_change(kit_index % 128, channel)
 
+    def play_note(
+        self,
+        note: int,
+        velocity: int = 100,
+        duration_ms: int = 120,
+        channel: int = 0,
+    ) -> None:
+        """Play a note on the output port and auto-release after duration_ms.
+
+        Also publishes the events to subscribers so the browser pulses the
+        corresponding pad — same path as notes arriving from an input port.
+        """
+        if self._out_port is None:
+            raise RuntimeError("No MIDI output port open")
+        on = mido.Message("note_on", note=note & 0x7F,
+                          velocity=velocity & 0x7F, channel=channel)
+        self._out_port.send(on)
+        self._publish(MidiEvent(type="note_on", ts=time.time(),
+                                note=note, velocity=velocity, channel=channel))
+
+        def _send_off() -> None:
+            try:
+                if self._out_port is None:
+                    return
+                off = mido.Message("note_off", note=note & 0x7F,
+                                   velocity=0, channel=channel)
+                self._out_port.send(off)
+                self._publish(MidiEvent(type="note_off", ts=time.time(),
+                                        note=note, velocity=0, channel=channel))
+            except Exception:  # pragma: no cover
+                pass
+
+        threading.Timer(duration_ms / 1000.0, _send_off).start()
+
     # ---------- recorder ----------
 
     def start_recording(self) -> None:

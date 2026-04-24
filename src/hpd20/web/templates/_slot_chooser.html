@@ -1,22 +1,29 @@
 {#
-  Strip of 17 compact pad chips. Clicking one swaps the pad editor
-  (HTMX) and highlights the newly-selected pad. The currently-selected
-  pad gets the ``selected`` class; actives get ``on``.
+  Strip of 17 compact pad chips. Click the chip body to switch the pad
+  editor (HTMX); click the ▶ to trigger the pad's MIDI note.
 #}
 <div class="slot-chooser">
     {% for p in pads %}
-        <a class="slot-chip {{ 'on' if p.active else 'off' }} {{ 'selected' if p.selected else '' }}
-                  {{ 'family-main' if p.family == 'main' else '' }}
-                  {{ 'family-side' if p.family == 'side' else '' }}
-                  {{ 'family-aux'  if p.family == 'aux'  else '' }}"
-           hx-get="/kit/{{ kit_index }}/pad/{{ p.slot }}"
-           hx-target="#pad-editor"
-           hx-swap="innerHTML"
-           hx-push-url="/kit/{{ kit_index }}/pad/{{ p.slot }}"
-           href="/kit/{{ kit_index }}/pad/{{ p.slot }}"
-           title="{{ p.name }} — {{ p.patch_name }}">
-            <span class="chip-name">{{ p.name }}</span>
-            <span class="chip-instr">{{ p.patch_short }}</span>
-        </a>
+        <div class="slot-chip-wrap {{ 'selected' if p.selected else '' }}
+                    {{ 'on' if p.active else 'off' }}
+                    {{ 'family-main' if p.family == 'main' else '' }}
+                    {{ 'family-side' if p.family == 'side' else '' }}
+                    {{ 'family-aux'  if p.family == 'aux'  else '' }}">
+            <a class="slot-chip"
+               hx-get="/kit/{{ kit_index }}/pad/{{ p.slot }}"
+               hx-target="#pad-editor"
+               hx-swap="innerHTML"
+               hx-push-url="/kit/{{ kit_index }}/pad/{{ p.slot }}"
+               href="/kit/{{ kit_index }}/pad/{{ p.slot }}"
+               title="{{ p.name }} — {{ p.patch_name }}">
+                <span class="chip-name">{{ p.name }}</span>
+                <span class="chip-instr">{{ p.patch_short }}</span>
+            </a>
+            <button type="button" class="chip-play"
+                    data-pad-slot="{{ p.slot }}"
+                    data-kit-index="{{ kit_index }}"
+                    aria-label="play {{ p.name }}"
+                    title="Play {{ p.name }} ({{ p.patch_name }})">▶</button>
+        </div>
     {% endfor %}
 </div>

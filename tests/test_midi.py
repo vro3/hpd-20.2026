@@ -236,3 +236,40 @@ class TestMidiRoutes:
         body = r.json()
         assert body["ok"] is True
         assert body["recording"] is False
+
+    def test_play_pad_requires_output(self, client):
+        # No output port connected -> 400
+        r = client.post("/api/midi/play/4/0")
+        assert r.status_code == 400
+
+    def test_play_pad_sends_note(self, client):
+        client.post("/api/midi/connect", data={"output_name": "Fake HPD-20"})
+        r = client.post("/api/midi/play/4/0")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["ok"] is True
+        assert body["kit"] == 4
+        assert body["slot"] == 0
+        assert isinstance(body["note"], int)
+
+    def test_play_pad_bounds_check(self, client):
+        client.post("/api/midi/connect", data={"output_name": "Fake HPD-20"})
+        assert client.post("/api/midi/play/999/0").status_code == 404
+        assert client.post("/api/midi/play/4/99").status_code == 404
+
+
+class TestPlayNote:
+    def test_play_note_sends_note_on_and_schedules_off(self, fake_mido):
+        engine = MidiEngine()
+        engine.connect(None, "Fake HPD-20")
+        engine.play_note(60, velocity=100, duration_ms=10)
+        # note_on fires immediately
+        assert any(m.type == "note_on" and m.note == 60 for m in engine._out_port.sent)
+        import time
+        time.sleep(0.05)  # wait for the scheduled note_off timer
+        assert any(m.type == "note_off" and m.note == 60 for m in engine._out_port.sent)
+
+    def test_play_note_without_output_raises(self, fake_mido):
+        engine = MidiEngine()
+        with pytest.raises(RuntimeError, match="No MIDI output port"):
+            engine.play_note(60)

@@ -277,6 +277,32 @@ def create_app(initial_backup: Path | None = None) -> FastAPI:
             raise HTTPException(400, str(e)) from e
         return JSONResponse({"ok": True, "kit": kit_index})
 
+    @app.post("/api/midi/play/{kit_index}/{pad_slot}")
+    async def midi_play_pad(kit_index: int, pad_slot: int, velocity: int = 100):
+        """Trigger the pad's configured MIDI note on the connected output."""
+        _bounds_check_kit(kit_index)
+        _bounds_check_pad(pad_slot)
+        engine = state.require_midi()
+        hpd = state.require()
+        pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + pad_slot)
+        note = pad.get_midi()
+        if not (1 <= note < 128):
+            raise HTTPException(
+                400,
+                f"pad {PAD_NAMES[pad_slot]} has no MIDI note assigned (got {note})",
+            )
+        try:
+            engine.play_note(note, velocity=max(1, min(127, velocity)))
+        except RuntimeError as e:
+            raise HTTPException(400, str(e)) from e
+        return JSONResponse({
+            "ok": True,
+            "kit": kit_index,
+            "slot": pad_slot,
+            "note": note,
+            "velocity": velocity,
+        })
+
     @app.post("/api/midi/record/start")
     async def midi_record_start():
         engine = state.require_midi()

@@ -296,6 +296,34 @@ body.swap-mode .pad { cursor: crosshair; }
 }
 .pad.pulse { animation: pad-pulse 180ms ease-out; }
 
+/* ===== Play buttons on the SVG skin ===== */
+.play-btn { cursor: pointer; opacity: 0.78; transition: opacity 0.12s, transform 0.08s; }
+.play-btn:hover { opacity: 1; }
+.play-btn:active, .play-btn.firing { transform: scale(0.88); transform-origin: center; transform-box: fill-box; }
+.play-btn-bg { fill: #1a1c1f; stroke: #e5a72c; stroke-width: 1.5; }
+.play-btn:hover .play-btn-bg { fill: #e5a72c; stroke: #fff; }
+.play-btn-icon { fill: #e5a72c; pointer-events: none; }
+.play-btn:hover .play-btn-icon { fill: #1a1c1f; }
+
+/* ===== Play buttons on the slot-chooser chips ===== */
+.slot-chip-wrap { position: relative; }
+.slot-chip-wrap.selected .slot-chip { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: #2a2618; }
+.slot-chip-wrap.family-main.on .chip-name { color: #ff8e6c; }
+.slot-chip-wrap.family-side.on .chip-name { color: #8be5d0; }
+.slot-chip-wrap.family-aux.on  .chip-name { color: var(--accent); }
+.slot-chip-wrap.family-aux.off .chip-name { color: #666; }
+.chip-play {
+    position: absolute; top: 2px; right: 2px;
+    width: 18px; height: 18px; padding: 0; line-height: 1;
+    font-size: 9px; color: var(--accent);
+    background: rgba(26, 28, 31, 0.7); border: 1px solid var(--accent-dim);
+    border-radius: 3px; cursor: pointer; opacity: 0;
+    transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+.slot-chip-wrap:hover .chip-play { opacity: 1; }
+.chip-play:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.chip-play.firing { background: #fff; color: #000; }
+
 /* ===== Responsive fallback ===== */
 @media (max-width: 1600px) {
     .kit-layout { grid-template-columns: 160px minmax(400px, 1fr) minmax(400px, 480px) 280px; gap: 8px; }

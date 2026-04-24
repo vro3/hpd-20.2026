@@ -102,6 +102,10 @@ def build_pad_geometries() -> list[dict[str, Any]]:
     # Slots 0..3 - the four M quadrants
     for idx, (name, a1, a2) in enumerate(M_QUADRANTS):
         cx_label, cy_label = centroid(CX, CY, R_M_INNER, R_M_OUTER, a1, a2)
+        # Play button sits outward of the centroid, toward the outer rim,
+        # in a spot the label stack doesn't occupy.
+        play_x, play_y = _polar(CX, CY, (R_M_INNER + R_M_OUTER) / 2 + 55,
+                                (a1 + a2) / 2)
         geoms.append({
             "slot": idx,
             "name": name,
@@ -109,6 +113,8 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "path": annular_wedge(CX, CY, R_M_INNER, R_M_OUTER, a1, a2),
             "label_x": cx_label,
             "label_y": cy_label,
+            "play_x": play_x,
+            "play_y": play_y,
             "family": "main",
         })
 
@@ -122,13 +128,19 @@ def build_pad_geometries() -> list[dict[str, Any]]:
         "r": R_M5_VISIBLE,
         "label_x": CX,
         "label_y": CY,
+        "play_x": CX,
+        "play_y": CY + R_M5_VISIBLE - 14,  # bottom interior of the centre pad
         "family": "main",
     })
 
-    # Slots 5..12 - the eight S wedges across the top
+    # Slots 5..12 - the eight S wedges across the top. Wedges are narrow,
+    # so the button sits right at the centroid (outer-radial bias would
+    # push it onto the bezel ring).
     for i in range(8):
         a1, a2 = _s_wedge(i)
         cx_label, cy_label = centroid(CX, CY, R_S_INNER, R_S_OUTER, a1, a2)
+        play_x, play_y = _polar(CX, CY, (R_S_INNER + R_S_OUTER) / 2 + 28,
+                                (a1 + a2) / 2)
         geoms.append({
             "slot": 5 + i,
             "name": f"S{i + 1}",
@@ -136,6 +148,8 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "path": annular_wedge(CX, CY, R_S_INNER, R_S_OUTER, a1, a2),
             "label_x": cx_label,
             "label_y": cy_label,
+            "play_x": play_x,
+            "play_y": play_y,
             "family": "side",
         })
 
@@ -154,6 +168,8 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "h": h,
             "label_x": x + w / 2,
             "label_y": y + h / 2 + 4,
+            "play_x": x + w - 14,    # right side of the rect
+            "play_y": y + h / 2,
             "family": "aux",
         })
     return geoms

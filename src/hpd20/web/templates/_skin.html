@@ -98,4 +98,26 @@
             <title>{{ p.name }} · {{ p.patch_name }}</title>
         </a>
     {% endfor %}
+
+    {# Play buttons — rendered last so they're on top of the pad <a> regions.
+       Each has its own click handler in midi.js that triggers
+       POST /api/midi/play/{k}/{slot}, stops propagation so the <a>
+       navigation doesn't fire. #}
+    {% for p in pads %}
+        <g class="play-btn"
+           data-pad-slot="{{ p.slot }}"
+           data-kit-index="{{ kit_index }}"
+           role="button"
+           tabindex="0"
+           aria-label="play {{ p.name }}">
+            <circle cx="{{ '%.1f'|format(p.play_x) }}" cy="{{ '%.1f'|format(p.play_y) }}" r="12"
+                    class="play-btn-bg"/>
+            <polygon points="{{ '%.1f,%.1f %.1f,%.1f %.1f,%.1f'|format(
+                        p.play_x - 4, p.play_y - 5,
+                        p.play_x - 4, p.play_y + 5,
+                        p.play_x + 5, p.play_y) }}"
+                     class="play-btn-icon"/>
+            <title>Play {{ p.name }} ({{ p.patch_name }})</title>
+        </g>
+    {% endfor %}
 </svg>
