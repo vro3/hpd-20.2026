@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>{% block title %}HPD-20 Editor{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <header>
+        <h1><a href="/">HPD-20 Editor</a></h1>
+        <div class="backup-info">
+            {% if backup_name %}
+                <span class="file">{{ backup_name }}</span>
+                {% if dirty %}<span class="dirty">edited</span>{% endif %}
+                <form action="/save" method="post" style="display:inline">
+                    <button type="submit">Save</button>
+                </form>
+                <a href="/download" class="btn">Download .HS0</a>
+            {% else %}
+                <span class="no-file">no backup loaded</span>
+            {% endif %}
+        </div>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

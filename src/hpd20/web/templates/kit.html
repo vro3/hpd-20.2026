@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Kit {{ kit_number }} — {{ kit_main }}{% endblock %}
+
+{% block content %}
+<div class="layout">
+    <aside class="kit-list">
+        <label for="kit-select">Kit</label>
+        <select id="kit-select" onchange="location='/kit/'+this.value">
+            {% for label in all_kits %}
+                <option value="{{ loop.index0 }}"
+                        {% if loop.index0 == kit_index %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+
+        <form action="/kit/{{ kit_index }}/name" method="post" class="rename">
+            <label>Name
+                <input type="text" name="main" value="{{ kit_main }}" maxlength="11" />
+            </label>
+            <label>Sub-name
+                <input type="text" name="sub" value="{{ kit_sub }}" maxlength="15" />
+            </label>
+            <button type="submit">Rename</button>
+        </form>
+
+        <section class="kit-actions">
+            <h3>Kit operations</h3>
+            <form action="/kit/{{ kit_index }}/copy/__dst__" method="post"
+                  onsubmit="this.action=this.action.replace('__dst__', this.dst.value); return true;">
+                Copy to
+                <input type="number" name="dst" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" style="width:4em"/>
+                <button type="submit">Copy</button>
+            </form>
+            <form action="/kit/{{ kit_index }}/swap/__b__" method="post"
+                  onsubmit="this.action=this.action.replace('__b__', this.b.value); return true;">
+                Swap with
+                <input type="number" name="b" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" style="width:4em"/>
+                <button type="submit">Swap</button>
+            </form>
+        </section>
+    </aside>
+
+    <section class="kit-main">
+        <h2>Kit {{ kit_number }} — {{ kit_main }} <small>{{ kit_sub }}</small></h2>
+
+        <div class="views">
+            <div class="view view-device">
+                <h3>Device view</h3>
+                <p class="hint">Click a pad to edit.</p>
+                {% include "_skin.html" %}
+            </div>
+
+            <div class="view view-grid">
+                <h3>Grid view</h3>
+                <table class="pad-grid">
+                    <thead>
+                        <tr>
+                            <th>Pad</th>
+                            <th>Layer</th>
+                            <th>Instrument</th>
+                            <th>Vol</th>
+                            <th>Pitch</th>
+                            <th>Note</th>
+                            <th>Pan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for p in pads %}
+                        <tr class="pad-row {{ 'on' if p.active else 'off' }}">
+                            <td><a href="/kit/{{ kit_index }}/pad/{{ p.slot }}">{{ p.name }}</a></td>
+                            <td>{{ p.layer }}</td>
+                            <td class="instr">{{ p.patch_name }}</td>
+                            <td>{{ p.volume_a }}</td>
+                            <td>{{ p.pitch_a }}</td>
+                            <td>{{ p.note_a }}</td>
+                            <td>{{ p.pan_a }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

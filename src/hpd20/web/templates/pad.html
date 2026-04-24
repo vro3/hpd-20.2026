@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Kit {{ kit_number }} · {{ pad_name }}{% endblock %}
+
+{% block content %}
+<div class="pad-edit">
+    <nav class="crumbs">
+        <a href="/kit/{{ kit_index }}">&larr; Kit {{ kit_number }}</a>
+        <span class="sep">/</span>
+        <span>{{ pad_name }}</span>
+    </nav>
+
+    <h2>{{ pad_name }} <small>(slot {{ pad_slot }})</small></h2>
+
+    <form action="/kit/{{ kit_index }}/pad/{{ pad_slot }}" method="post" class="pad-form">
+        <fieldset>
+            <legend>Layer A</legend>
+            <label>Instrument
+                <select name="patch_a">
+                    {% for name in instruments %}
+                        {% set idx = loop.index0 %}
+                        <option value="{{ idx }}" {% if idx == patch_a %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Volume (0-100)
+                <input type="number" name="volume_a" min="0" max="100" value="{{ volume_a }}" />
+            </label>
+            <label>Pitch cents (-2400 to 2400)
+                <input type="number" name="pitch_a" min="-2400" max="2400" value="{{ pitch_a }}" />
+            </label>
+            <label>Pan (-15 to 15)
+                <input type="number" name="pan_a" min="-15" max="15" value="{{ pan_a }}" />
+            </label>
+            <label>Muffling (0-100)
+                <input type="number" name="muffling_a" min="0" max="100" value="{{ muffling_a }}" />
+            </label>
+            <label>Ambient send (0-127)
+                <input type="number" name="ambient_a" min="0" max="127" value="{{ ambient_a }}" />
+            </label>
+            <label>Sweep (-100 to 100)
+                <input type="number" name="sweep_a" min="-100" max="100" value="{{ sweep_a }}" />
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Layer B</legend>
+            <label>Instrument
+                <select name="patch_b">
+                    {% for name in instruments %}
+                        {% set idx = loop.index0 %}
+                        <option value="{{ idx }}" {% if idx == patch_b %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Volume (0-100)
+                <input type="number" name="volume_b" min="0" max="100" value="{{ volume_b }}" />
+            </label>
+            <label>Pitch cents
+                <input type="number" name="pitch_b" min="-2400" max="2400" value="{{ pitch_b }}" />
+            </label>
+            <label>Pan (-15 to 15)
+                <input type="number" name="pan_b" min="-15" max="15" value="{{ pan_b }}" />
+            </label>
+        </fieldset>
+
+        <div class="actions">
+            <button type="submit" class="primary">Apply</button>
+            <a href="/kit/{{ kit_index }}" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
