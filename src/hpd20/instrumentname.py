@@ -1,5 +1,8 @@
-#!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
+"""HPD-20 internal patch number → instrument name + default pitch.
+
+Auto-generated from Jürgen Schwietering's reverse-engineering work; see
+``docs/JURGEN-NOTES.rst``.
+"""
 
 
 instruments = {

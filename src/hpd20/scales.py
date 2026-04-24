@@ -1,4 +1,4 @@
-import instrumentname
+from . import instrumentname
 
 # note names are C4 = 60 (midi spec)
 
@@ -67,7 +67,7 @@ class Scale:
         try:
             val = Scale.get_root_notes().index(note_as_string)
             return val + 36
-        except:
+        except ValueError:
             return 0
 
     @staticmethod

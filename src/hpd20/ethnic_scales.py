@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.7
-# -*- coding: utf-8 -*-
+"""Scala-format ethnic/microtonal scale library (huygens-fokker.org)."""
 
 ethnic_scales = [
     ['./05-19.scl', '5 out of 19-tET', 6, ['1/1', '252.63158', '505.26316', '757.89474', '1010.52632', '2/1'], [1.0, 252.63158, 505.26316, 757.89474, 1010.52632, 2.0]],
