@@ -8,12 +8,21 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..core import HPD, PAD_NAMES, PADS_PER_KIT, get_note_name
-from ..instrumentname import get_complete_instrument_list, get_instrument_name, get_instrument_pitch
+from ..instrumentname import (
+    get_complete_instrument_list,
+    get_instrument_name,
+    get_instrument_pitch,
+)
+from ..instrumentname import (
+    instruments as INSTRUMENT_TABLE,
+)
+from . import favorites
+from .skin_geometry import PAD_GEOMETRIES, VIEW_H, VIEW_W
 
 log = logging.getLogger(__name__)
 
@@ -71,10 +80,15 @@ def create_app(initial_backup: Path | None = None) -> FastAPI:
     def view_pad(request: Request, kit_index: int, pad_slot: int):
         _bounds_check_kit(kit_index)
         _bounds_check_pad(pad_slot)
-        return _render_pad(request, templates, state, kit_index, pad_slot)
+        # HTMX asks for just the form fragment; full page requests get the
+        # whole kit page with this pad pre-selected on the right.
+        if request.headers.get("HX-Request"):
+            return _render_pad_fragment(request, templates, state, kit_index, pad_slot)
+        return _render_kit(request, templates, state, kit_index, selected_pad=pad_slot)
 
     @app.post("/kit/{kit_index}/pad/{pad_slot}")
     def edit_pad(
+        request: Request,
         kit_index: int,
         pad_slot: int,
         volume_a: int = Form(...),
@@ -84,8 +98,11 @@ def create_app(initial_backup: Path | None = None) -> FastAPI:
         pan_a: int = Form(...),
         pan_b: int = Form(0),
         muffling_a: int = Form(...),
+        muffling_b: int = Form(0),
         ambient_a: int = Form(...),
+        ambient_b: int = Form(0),
         sweep_a: int = Form(...),
+        sweep_b: int = Form(0),
         patch_a: int = Form(...),
         patch_b: int = Form(0),
     ):
@@ -100,12 +117,70 @@ def create_app(initial_backup: Path | None = None) -> FastAPI:
         pad.set_pan(0, _clamp(pan_a, -15, 15))
         pad.set_pan(1, _clamp(pan_b, -15, 15))
         pad.set_muffling(0, _clamp(muffling_a, 0, 100))
+        pad.set_muffling(1, _clamp(muffling_b, 0, 100))
         pad.set_ambientsend(0, _clamp(ambient_a, 0, 127))
+        pad.set_ambientsend(1, _clamp(ambient_b, 0, 127))
         pad.set_sweep(0, _clamp(sweep_a, -100, 100))
+        pad.set_sweep(1, _clamp(sweep_b, -100, 100))
         pad.set_patch(0, patch_a)
         pad.set_patch(1, patch_b)
         state.mark_dirty()
+        if request.headers.get("HX-Request"):
+            return _render_pad_fragment(request, templates, state, kit_index, pad_slot)
         return RedirectResponse(f"/kit/{kit_index}/pad/{pad_slot}", status_code=303)
+
+    @app.post("/kit/{kit_index}/pad/{pad_slot}/patch")
+    def apply_patch(
+        request: Request,
+        kit_index: int,
+        pad_slot: int,
+        layer: int = Form(0),
+        instrument_id: int = Form(...),
+    ):
+        """Apply a single instrument to one layer without touching other fields."""
+        _bounds_check_kit(kit_index)
+        _bounds_check_pad(pad_slot)
+        if layer not in (0, 1):
+            raise HTTPException(400, "layer must be 0 or 1")
+        hpd = state.require()
+        pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + pad_slot)
+        pad.set_patch(layer, instrument_id)
+        state.mark_dirty()
+        if request.headers.get("HX-Request"):
+            return _render_pad_fragment(request, templates, state, kit_index, pad_slot)
+        return RedirectResponse(f"/kit/{kit_index}/pad/{pad_slot}", status_code=303)
+
+    @app.post("/kit/{kit_index}/pad-swap/{a_slot}/{b_slot}")
+    def swap_pads_in_kit(kit_index: int, a_slot: int, b_slot: int):
+        """Swap two pad slots (e.g. M1 <-> M2) within the current kit."""
+        _bounds_check_kit(kit_index)
+        _bounds_check_pad(a_slot)
+        _bounds_check_pad(b_slot)
+        hpd = state.require()
+        hpd.swap_pads_in_kit(kit_index, a_slot, b_slot)
+        state.mark_dirty()
+        return RedirectResponse(f"/kit/{kit_index}/pad/{a_slot}", status_code=303)
+
+    @app.get("/api/instruments")
+    def api_instruments(q: str = ""):
+        """All instruments + favourite flag, optionally filtered by substring."""
+        fav_set = set(favorites.load())
+        needle = q.strip().lower()
+        items = []
+        for idx, (_pitch, name) in INSTRUMENT_TABLE.items():
+            if needle and needle not in name.lower():
+                continue
+            items.append({
+                "id": idx,
+                "name": name,
+                "favorite": idx in fav_set,
+            })
+        return JSONResponse({"items": items, "favorites": sorted(fav_set)})
+
+    @app.post("/api/favorites/{instrument_id}")
+    def api_toggle_favorite(instrument_id: int):
+        ids = favorites.toggle(instrument_id)
+        return JSONResponse({"favorites": ids})
 
     @app.post("/kit/{kit_index}/name")
     def edit_kit_name(kit_index: int, main: str = Form(""), sub: str = Form("")):
@@ -175,13 +250,22 @@ def _clamp(value: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, value))
 
 
-def _render_kit(request: Request, templates: Jinja2Templates, state: AppState, kit_index: int):
+def _render_kit(
+    request: Request,
+    templates: Jinja2Templates,
+    state: AppState,
+    kit_index: int,
+    selected_pad: int = 0,
+):
     hpd = state.require()
     kit = hpd.kits.get_kit(kit_index)
     pads: list[dict[str, Any]] = []
     for slot in range(PADS_PER_KIT):
         pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + slot)
-        pads.append(_pad_summary(pad, slot))
+        summary = _pad_summary(pad, slot)
+        # merge static SVG geometry with per-kit pad data
+        geom = PAD_GEOMETRIES[slot]
+        pads.append({**geom, **summary, "selected": slot == selected_pad})
     return templates.TemplateResponse(
         request,
         "kit.html",
@@ -194,8 +278,12 @@ def _render_kit(request: Request, templates: Jinja2Templates, state: AppState, k
             "kit_hh_volume": kit.get_hh_volume(),
             "kit_balance": kit.get_balance(),
             "pads": pads,
+            "selected_pad": selected_pad,
+            "pad_ctx": _pad_form_context(state, kit_index, selected_pad),
             "backup_name": state.backup_path.name if state.backup_path else "",
             "dirty": state.dirty,
+            "skin_view_w": VIEW_W,
+            "skin_view_h": VIEW_H,
             "all_kits": [
                 f"{i + 1:>3}  {hpd.kits.get_kit(i).main_name().strip()}"
                 for i in range(200)
@@ -204,40 +292,65 @@ def _render_kit(request: Request, templates: Jinja2Templates, state: AppState, k
     )
 
 
-def _render_pad(request, templates, state: AppState, kit_index: int, pad_slot: int):
-    hpd = state.require()
-    pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + pad_slot)
+def _render_pad_fragment(
+    request: Request,
+    templates: Jinja2Templates,
+    state: AppState,
+    kit_index: int,
+    pad_slot: int,
+):
+    """Return just the pad-editor form, for HTMX swaps."""
     return templates.TemplateResponse(
         request,
-        "pad.html",
-        {
-            "kit_index": kit_index,
-            "kit_number": kit_index + 1,
-            "pad_slot": pad_slot,
-            "pad_name": PAD_NAMES[pad_slot],
-            "volume_a": pad.get_volume(0),
-            "volume_b": pad.get_volume(1),
-            "pitch_a": pad.get_pitch(0),
-            "pitch_b": pad.get_pitch(1),
-            "pan_a": pad.get_pan(0),
-            "pan_b": pad.get_pan(1),
-            "muffling_a": pad.get_muffling(0),
-            "ambient_a": pad.get_ambientsend(0),
-            "sweep_a": pad.get_sweep(0),
-            "patch_a": pad.get_patch(0),
-            "patch_b": pad.get_patch(1),
-            "patch_a_name": get_instrument_name(pad.get_patch(0)),
-            "patch_b_name": get_instrument_name(pad.get_patch(1)),
-            "instruments": get_complete_instrument_list(),
-            "backup_name": state.backup_path.name if state.backup_path else "",
-            "dirty": state.dirty,
-        },
+        "_pad_form.html",
+        {"pad_ctx": _pad_form_context(state, kit_index, pad_slot)},
     )
+
+
+def _pad_form_context(state: AppState, kit_index: int, pad_slot: int) -> dict[str, Any]:
+    hpd = state.require()
+    pad = hpd.pads.get_pad(kit_index * PADS_PER_KIT + pad_slot)
+    return {
+        "kit_index": kit_index,
+        "kit_number": kit_index + 1,
+        "pad_slot": pad_slot,
+        "pad_name": PAD_NAMES[pad_slot],
+        "volume_a": pad.get_volume(0),
+        "volume_b": pad.get_volume(1),
+        "pitch_a": pad.get_pitch(0),
+        "pitch_b": pad.get_pitch(1),
+        "pan_a": pad.get_pan(0),
+        "pan_b": pad.get_pan(1),
+        "muffling_a": pad.get_muffling(0),
+        "muffling_b": pad.get_muffling(1),
+        "ambient_a": pad.get_ambientsend(0),
+        "ambient_b": pad.get_ambientsend(1),
+        "sweep_a": pad.get_sweep(0),
+        "sweep_b": pad.get_sweep(1),
+        "patch_a": pad.get_patch(0),
+        "patch_b": pad.get_patch(1),
+        "patch_a_name": get_instrument_name(pad.get_patch(0)),
+        "patch_b_name": get_instrument_name(pad.get_patch(1)),
+        "instruments": get_complete_instrument_list(),
+    }
+
+
+def _truncate(name: str, n: int) -> str:
+    return name if len(name) <= n else name[: n - 1] + "…"
 
 
 def _pad_summary(pad, slot: int) -> dict[str, Any]:
     raw_pitch = pad.get_pitch(0)
     absolute = raw_pitch + get_instrument_pitch(pad.get_patch(0))
+    patch_name = get_instrument_name(pad.get_patch(0))
+    # Character budget per family — Big-pad labels get ~14 chars, S-wedges ~8,
+    # aux chips ~12. These track the CSS font sizes so names wrap gracefully.
+    if slot < 5:
+        short = _truncate(patch_name, 14)
+    elif slot < 13:
+        short = _truncate(patch_name, 8)
+    else:
+        short = _truncate(patch_name, 12)
     return {
         "slot": slot,
         "name": PAD_NAMES[slot],
@@ -245,7 +358,8 @@ def _pad_summary(pad, slot: int) -> dict[str, Any]:
         "volume_a": pad.get_volume(0),
         "pitch_a": raw_pitch,
         "note_a": get_note_name((absolute + 50) / 100),
-        "patch_name": get_instrument_name(pad.get_patch(0)),
+        "patch_name": patch_name,
+        "patch_short": short,
         "pan_a": pad.get_pan(0),
         "active": pad.get_layer() > 0,
     }

@@ -2,7 +2,7 @@
 {% block title %}Kit {{ kit_number }} — {{ kit_main }}{% endblock %}
 
 {% block content %}
-<div class="layout">
+<div class="kit-layout" id="kit-layout" data-kit-index="{{ kit_index }}">
     <aside class="kit-list">
         <label for="kit-select">Kit</label>
         <select id="kit-select" onchange="location='/kit/'+this.value">
@@ -23,62 +23,49 @@
         </form>
 
         <section class="kit-actions">
-            <h3>Kit operations</h3>
+            <h3>Kit ops</h3>
             <form action="/kit/{{ kit_index }}/copy/__dst__" method="post"
                   onsubmit="this.action=this.action.replace('__dst__', this.dst.value); return true;">
-                Copy to
-                <input type="number" name="dst" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" style="width:4em"/>
-                <button type="submit">Copy</button>
+                Copy→
+                <input type="number" name="dst" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" />
+                <button type="submit">Go</button>
             </form>
             <form action="/kit/{{ kit_index }}/swap/__b__" method="post"
                   onsubmit="this.action=this.action.replace('__b__', this.b.value); return true;">
-                Swap with
-                <input type="number" name="b" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" style="width:4em"/>
-                <button type="submit">Swap</button>
+                Swap↔
+                <input type="number" name="b" min="0" max="199" value="{{ (kit_index + 1) % 200 }}" />
+                <button type="submit">Go</button>
             </form>
+            <button type="button" id="swap-pads-btn" class="swap-btn" title="Swap two pads within this kit">
+                Swap pads
+            </button>
         </section>
     </aside>
 
-    <section class="kit-main">
-        <h2>Kit {{ kit_number }} — {{ kit_main }} <small>{{ kit_sub }}</small></h2>
-
-        <div class="views">
-            <div class="view view-device">
-                <h3>Device view</h3>
-                <p class="hint">Click a pad to edit.</p>
-                {% include "_skin.html" %}
-            </div>
-
-            <div class="view view-grid">
-                <h3>Grid view</h3>
-                <table class="pad-grid">
-                    <thead>
-                        <tr>
-                            <th>Pad</th>
-                            <th>Layer</th>
-                            <th>Instrument</th>
-                            <th>Vol</th>
-                            <th>Pitch</th>
-                            <th>Note</th>
-                            <th>Pan</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    {% for p in pads %}
-                        <tr class="pad-row {{ 'on' if p.active else 'off' }}">
-                            <td><a href="/kit/{{ kit_index }}/pad/{{ p.slot }}">{{ p.name }}</a></td>
-                            <td>{{ p.layer }}</td>
-                            <td class="instr">{{ p.patch_name }}</td>
-                            <td>{{ p.volume_a }}</td>
-                            <td>{{ p.pitch_a }}</td>
-                            <td>{{ p.note_a }}</td>
-                            <td>{{ p.pan_a }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <section class="col-skin">
+        <div class="kit-title">
+            <span class="kit-num">Kit {{ kit_number }}</span>
+            <span class="kit-name">{{ kit_main }}</span>
+            {% if kit_sub %}<small>{{ kit_sub }}</small>{% endif %}
         </div>
+        <div id="swap-banner" class="swap-banner" hidden>
+            <span class="swap-msg">Click <b>first</b> pad to swap…</span>
+            <button type="button" id="swap-cancel">Cancel</button>
+        </div>
+        <div class="skin-wrap">
+            {% include "_skin.html" %}
+        </div>
+    </section>
+
+    <section class="col-editor" id="pad-editor-col">
+        {% include "_slot_chooser.html" %}
+        <div id="pad-editor">
+            {% include "_pad_form.html" %}
+        </div>
+    </section>
+
+    <section class="col-library">
+        {% include "_instrument_library.html" %}
     </section>
 </div>
 {% endblock %}

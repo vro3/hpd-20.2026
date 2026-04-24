@@ -172,6 +172,17 @@ class HPD:
                 b * PADS_PER_KIT + slot,
             )
 
+    def swap_pads_in_kit(self, kit_index: int, a_slot: int, b_slot: int) -> None:
+        """Swap two pad slots within the same kit (e.g. M1 <-> M2)."""
+        if a_slot == b_slot:
+            return
+        self._swap_block(
+            PAD_MEMINDEX,
+            PAD_MEMSIZE,
+            kit_index * PADS_PER_KIT + a_slot,
+            kit_index * PADS_PER_KIT + b_slot,
+        )
+
     def copy_kit(self, src: int, dst: int) -> None:
         self._copy_block(KIT_MEMINDEX, KIT_MEMSIZE, src, dst)
         for slot in range(PADS_PER_KIT):

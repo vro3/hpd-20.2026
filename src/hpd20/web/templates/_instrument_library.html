@@ -1,0 +1,21 @@
+{#
+  Searchable instrument library. Data loaded once via /api/instruments
+  (client-side fuzzy filter for ~850 items). Favorites pinned at top,
+  persist to ~/.hpd20-favorites.json.
+#}
+<div class="library" id="instrument-library"
+     data-kit-index="{{ kit_index }}"
+     data-pad-slot="{{ selected_pad }}">
+    <header class="library-header">
+        <h3>Instruments</h3>
+        <input type="search" id="library-search" placeholder="search sounds…" autocomplete="off" />
+    </header>
+    <section id="library-favorites" class="library-section">
+        <h4>Favorites</h4>
+        <ul id="library-fav-list" class="library-list"><li class="library-empty">(none yet — click a ☆ to favorite)</li></ul>
+    </section>
+    <section id="library-all" class="library-section">
+        <h4>All sounds <small id="library-count"></small></h4>
+        <ul id="library-all-list" class="library-list"></ul>
+    </section>
+</div>

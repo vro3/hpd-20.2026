@@ -22,8 +22,9 @@ def test_index_renders(client: TestClient) -> None:
     r = client.get("/")
     assert r.status_code == 200
     assert "HPD-20 Editor" in r.text
-    assert "Device view" in r.text
-    assert "Grid view" in r.text
+    # Both the pad skin and the inline pad editor are on the same page
+    assert "hpd-skin" in r.text
+    assert 'id="pad-editor"' in r.text
 
 
 def test_kit_page_renders(client: TestClient) -> None:
@@ -37,6 +38,33 @@ def test_pad_page_renders(client: TestClient) -> None:
     assert r.status_code == 200
     assert "Layer A" in r.text
     assert "Layer B" in r.text
+
+
+def test_pad_fragment_renders_without_base_template(client: TestClient) -> None:
+    """HTMX requests get just the form, no surrounding <html>."""
+    r = client.get("/kit/4/pad/0", headers={"HX-Request": "true"})
+    assert r.status_code == 200
+    assert "Layer A" in r.text
+    assert "<html" not in r.text.lower()
+    assert "pad-editor-inner" in r.text
+
+
+def test_pad_edit_htmx_returns_fragment(client: TestClient) -> None:
+    """HTMX POST gets fragment back, not a 303 redirect."""
+    r = client.post(
+        "/kit/0/pad/0",
+        headers={"HX-Request": "true"},
+        data={
+            "volume_a": 50, "volume_b": 0,
+            "pitch_a": 0, "pitch_b": 0,
+            "pan_a": 0, "pan_b": 0,
+            "muffling_a": 0, "ambient_a": 0, "sweep_a": 0,
+            "patch_a": 0, "patch_b": 0,
+        },
+        follow_redirects=False,
+    )
+    assert r.status_code == 200
+    assert "pad-editor-inner" in r.text
 
 
 def test_edit_pad_persists(client: TestClient, backup_path: Path, tmp_path: Path) -> None:

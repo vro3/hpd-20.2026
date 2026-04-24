@@ -1,0 +1,67 @@
+{#
+  Pad editor fragment — served standalone to HTMX (via HX-Request header)
+  and included inside kit.html for the initial render. No base template;
+  always swapped into #pad-editor.
+#}
+{% set c = pad_ctx %}
+<div class="pad-form-inner" id="pad-editor-inner" data-slot="{{ c.pad_slot }}">
+    <header class="pad-form-header">
+        <h3>{{ c.pad_name }} <small>slot {{ c.pad_slot }}</small></h3>
+        <div class="patch-names">
+            <span class="lbl">A:</span> <span>{{ c.patch_a_name }}</span>
+            <span class="lbl">B:</span> <span>{{ c.patch_b_name }}</span>
+        </div>
+    </header>
+
+    <form
+        hx-post="/kit/{{ c.kit_index }}/pad/{{ c.pad_slot }}"
+        hx-target="#pad-editor"
+        hx-swap="innerHTML"
+        action="/kit/{{ c.kit_index }}/pad/{{ c.pad_slot }}"
+        method="post"
+        class="pad-form-compact">
+
+        <div class="layers">
+            <fieldset>
+                <legend>Layer A</legend>
+                <label>Instrument
+                    <select name="patch_a">
+                        {% for name in c.instruments %}
+                            {% set idx = loop.index0 %}
+                            <option value="{{ idx }}" {% if idx == c.patch_a %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="inline">Vol<input type="number" name="volume_a" min="0" max="100" value="{{ c.volume_a }}" /></label>
+                <label class="inline">Pitch<input type="number" name="pitch_a" min="-2400" max="2400" value="{{ c.pitch_a }}" /></label>
+                <label class="inline">Pan<input type="number" name="pan_a" min="-15" max="15" value="{{ c.pan_a }}" /></label>
+                <label class="inline">Muff<input type="number" name="muffling_a" min="0" max="100" value="{{ c.muffling_a }}" /></label>
+                <label class="inline">Amb<input type="number" name="ambient_a" min="0" max="127" value="{{ c.ambient_a }}" /></label>
+                <label class="inline">Sweep<input type="number" name="sweep_a" min="-100" max="100" value="{{ c.sweep_a }}" /></label>
+            </fieldset>
+
+            <fieldset>
+                <legend>Layer B</legend>
+                <label>Instrument
+                    <select name="patch_b">
+                        {% for name in c.instruments %}
+                            {% set idx = loop.index0 %}
+                            <option value="{{ idx }}" {% if idx == c.patch_b %}selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="inline">Vol<input type="number" name="volume_b" min="0" max="100" value="{{ c.volume_b }}" /></label>
+                <label class="inline">Pitch<input type="number" name="pitch_b" min="-2400" max="2400" value="{{ c.pitch_b }}" /></label>
+                <label class="inline">Pan<input type="number" name="pan_b" min="-15" max="15" value="{{ c.pan_b }}" /></label>
+                <label class="inline">Muff<input type="number" name="muffling_b" min="0" max="100" value="{{ c.muffling_b }}" /></label>
+                <label class="inline">Amb<input type="number" name="ambient_b" min="0" max="127" value="{{ c.ambient_b }}" /></label>
+                <label class="inline">Sweep<input type="number" name="sweep_b" min="-100" max="100" value="{{ c.sweep_b }}" /></label>
+            </fieldset>
+        </div>
+
+        <div class="actions">
+            <button type="submit" class="primary">Apply</button>
+            <span class="hint">Click any pad to switch • Library click sets Layer A (shift-click for B)</span>
+        </div>
+    </form>
+</div>
