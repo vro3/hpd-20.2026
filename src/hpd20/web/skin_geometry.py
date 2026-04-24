@@ -99,13 +99,11 @@ def build_pad_geometries() -> list[dict[str, Any]]:
     """Return one geometry dict per pad slot (0..16), with drawing data."""
     geoms: list[dict[str, Any]] = []
 
-    # Slots 0..3 - the four M quadrants
+    # Slots 0..3 - the four M quadrants. Play button sits centred under
+    # the label stack (name + instrument + note + volume), outside the
+    # text block so it doesn't overlap any label.
     for idx, (name, a1, a2) in enumerate(M_QUADRANTS):
         cx_label, cy_label = centroid(CX, CY, R_M_INNER, R_M_OUTER, a1, a2)
-        # Play button sits outward of the centroid, toward the outer rim,
-        # in a spot the label stack doesn't occupy.
-        play_x, play_y = _polar(CX, CY, (R_M_INNER + R_M_OUTER) / 2 + 55,
-                                (a1 + a2) / 2)
         geoms.append({
             "slot": idx,
             "name": name,
@@ -113,12 +111,13 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "path": annular_wedge(CX, CY, R_M_INNER, R_M_OUTER, a1, a2),
             "label_x": cx_label,
             "label_y": cy_label,
-            "play_x": play_x,
-            "play_y": play_y,
+            "play_x": cx_label,
+            "play_y": cy_label + 54,
             "family": "main",
         })
 
-    # Slot 4 - M5 centre circle
+    # Slot 4 - M5 centre circle (smaller, so play button sits just below the
+    # label stack but inside the circle).
     geoms.append({
         "slot": 4,
         "name": "M5",
@@ -129,18 +128,14 @@ def build_pad_geometries() -> list[dict[str, Any]]:
         "label_x": CX,
         "label_y": CY,
         "play_x": CX,
-        "play_y": CY + R_M5_VISIBLE - 14,  # bottom interior of the centre pad
+        "play_y": CY + 32,
         "family": "main",
     })
 
-    # Slots 5..12 - the eight S wedges across the top. Wedges are narrow,
-    # so the button sits right at the centroid (outer-radial bias would
-    # push it onto the bezel ring).
+    # Slots 5..12 - the eight S wedges across the top
     for i in range(8):
         a1, a2 = _s_wedge(i)
         cx_label, cy_label = centroid(CX, CY, R_S_INNER, R_S_OUTER, a1, a2)
-        play_x, play_y = _polar(CX, CY, (R_S_INNER + R_S_OUTER) / 2 + 28,
-                                (a1 + a2) / 2)
         geoms.append({
             "slot": 5 + i,
             "name": f"S{i + 1}",
@@ -148,12 +143,12 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "path": annular_wedge(CX, CY, R_S_INNER, R_S_OUTER, a1, a2),
             "label_x": cx_label,
             "label_y": cy_label,
-            "play_x": play_x,
-            "play_y": play_y,
+            "play_x": cx_label,
+            "play_y": cy_label + 32,
             "family": "side",
         })
 
-    # Slots 13..16 - auxiliary triggers in the header strip
+    # Slots 13..16 - auxiliary trigger rects at the top of the SVG.
     order = [("D-Beam", 13), ("Head", 14), ("Rim", 15), ("HH", 16)]
     for aux_name, slot in order:
         rect = next(r for r in AUX_RECTS if r[0] == aux_name)
@@ -168,8 +163,8 @@ def build_pad_geometries() -> list[dict[str, Any]]:
             "h": h,
             "label_x": x + w / 2,
             "label_y": y + h / 2 + 4,
-            "play_x": x + w - 14,    # right side of the rect
-            "play_y": y + h / 2,
+            "play_x": x + w / 2,
+            "play_y": y + h + 22,  # just below the rect, centred under name
             "family": "aux",
         })
     return geoms
